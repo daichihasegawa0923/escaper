@@ -25,8 +25,7 @@ namespace Escaper.Core.NodeEditor
             _nodePanel = new NodePanel(_nodes, _connections);
 
             // スタートノードを追加
-            Node startNode = new Node("Start", new Vector2(100, 100), NodeType.Start);
-            startNode.AddOutputPort("Next");
+            Node startNode = new StartNode("Start", new Vector2(100, 100));
             _nodes.Add(startNode);
         }
 
@@ -64,18 +63,26 @@ namespace Escaper.Core.NodeEditor
             GenericMenu menu = new GenericMenu();
             Vector2 mousePosition = _lastMousePosition + _scrollPosition;
 
-            menu.AddItem(new GUIContent("Add Status Node"), false, () => AddNode(mousePosition, NodeType.Status));
-            menu.AddItem(new GUIContent("Add Puzzle Node"), false, () => AddNode(mousePosition, NodeType.Puzzle));
+            menu.AddItem(new GUIContent("Add Status Node"), false, () => AddStatusNode(mousePosition));
+            menu.AddItem(new GUIContent("Add Puzzle Node"), false, () => AddPuzzleNode(mousePosition));
             menu.ShowAsContext();
         }
 
-        private void AddNode(Vector2 position, NodeType type)
+        private void AddStatusNode(Vector2 position)
         {
             if (_nodes != null)
             {
-                Node node = new Node($"{type} Node", position, type);
-                node.AddInputPort("Input");
-                node.AddOutputPort("Output");
+                Node node = new StatusNode("Status Node", position);
+                _nodes.Add(node);
+                GUI.changed = true;
+            }
+        }
+
+        private void AddPuzzleNode(Vector2 position)
+        {
+            if (_nodes != null)
+            {
+                Node node = new PuzzleNode("Puzzle Node", position);
                 _nodes.Add(node);
                 GUI.changed = true;
             }

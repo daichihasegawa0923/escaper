@@ -3,14 +3,7 @@ using UnityEngine;
 
 namespace Escaper.Core.NodeEditor
 {
-    public enum NodeType
-    {
-        Start,
-        Status,
-        Puzzle
-    }
-
-    public class Node
+    public abstract class Node
     {
         public string Id { get; private set; }
         public string Name { get; set; }
@@ -19,18 +12,16 @@ namespace Escaper.Core.NodeEditor
         public List<Port> OutputPorts { get; private set; }
         public GameObject TargetObject { get; set; }
         public Rect NodeRect { get; private set; }
-        public NodeType Type { get; private set; }
-        public string Status { get; set; }
 
-        public Node(string name, Vector2 position, NodeType type)
+        protected Node(string name, Vector2 position)
         {
             Id = System.Guid.NewGuid().ToString();
             Name = name;
             Position = position;
-            Type = type;
             InputPorts = new List<Port>();
             OutputPorts = new List<Port>();
             UpdateNodeRect();
+            InitializePorts();
         }
 
         public void UpdateNodeRect()
@@ -47,5 +38,14 @@ namespace Escaper.Core.NodeEditor
         {
             OutputPorts.Add(new Port(name, this, false));
         }
+
+        // ノードの描画処理を各派生クラスで実装
+        public abstract void DrawNode();
+
+        // ノードの種類に応じたポートを初期化
+        protected abstract void InitializePorts();
+
+        // ノードの種類に応じた背景色を取得
+        public abstract Color GetNodeColor();
     }
 }

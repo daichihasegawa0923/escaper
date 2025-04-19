@@ -1,5 +1,8 @@
 {
     "cSpell.words": [
         "Behaviour"
-    ]
+    ],
+    "files.exclude": {
+        "**/*.meta": true
+    }
 }
