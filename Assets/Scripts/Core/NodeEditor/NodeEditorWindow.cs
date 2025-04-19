@@ -26,7 +26,8 @@ namespace Escaper.Core.NodeEditor
             _nodePanel = new NodePanel(_nodes, _connections);
 
             // スタートノードを追加
-            Node startNode = new StartNode("Start", new Vector2(100, 100));
+            Node startNode = new StartNode("Start");
+            startNode.Position = new Vector2(100, 100);
             _nodes.Add(startNode);
         }
 
@@ -100,7 +101,8 @@ namespace Escaper.Core.NodeEditor
         {
             if (_nodes != null)
             {
-                Node node = new StatusNode("Status Node", position);
+                Node node = new StatusNode("Status Node");
+                node.Position = position;
                 _nodes.Add(node);
                 GUI.changed = true;
             }
@@ -110,7 +112,8 @@ namespace Escaper.Core.NodeEditor
         {
             if (_nodes != null)
             {
-                Node node = new PuzzleNode("Puzzle Node", position);
+                Node node = new PuzzleNode("Puzzle Node");
+                node.Position = position;
                 _nodes.Add(node);
                 GUI.changed = true;
             }

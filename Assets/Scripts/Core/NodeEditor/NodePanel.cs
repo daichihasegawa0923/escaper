@@ -7,7 +7,6 @@ namespace Escaper.Core.NodeEditor
 {
     public abstract class BaseNodePanel<T> where T : Node
     {
-        protected const float NODE_WIDTH = 200f;
         protected const float NODE_HEIGHT = 120f;
         protected const float PORT_HEIGHT = 20f;
         protected const float PORT_SPACING = 25f;
@@ -127,6 +126,7 @@ namespace Escaper.Core.NodeEditor
 
         protected virtual void DrawBezier(Vector2 start, Vector2 end, Color color)
         {
+            // 接続線の開始点と終了点を調整
             Vector2 startTangent = start + Vector2.right * CONNECTION_CURVE;
             Vector2 endTangent = end - Vector2.right * CONNECTION_CURVE;
 
@@ -134,7 +134,7 @@ namespace Escaper.Core.NodeEditor
             Handles.color = color;
             Handles.DrawBezier(start, end, startTangent, endTangent, color, null, CONNECTION_LINE_WIDTH);
 
-            // 矢印を描画
+            // 矢印を描画（終点側にのみ）
             Vector2 direction = (end - start).normalized;
             Vector2 perpendicular = new Vector2(-direction.y, direction.x);
             Vector2 arrowPos = end - direction * 10f;
@@ -153,8 +153,9 @@ namespace Escaper.Core.NodeEditor
 
         protected virtual Vector2 GetPortPosition(Port port)
         {
-            float x = port.IsInput ? port.Node.Position.x + 5 : port.Node.Position.x + NODE_WIDTH - 25;
-            float y = port.Node.Position.y + 30 + (port.IsInput ? port.Node.InputPorts : port.Node.OutputPorts).IndexOf(port) * PORT_SPACING;
+            float y = port.Node.Position.y + HEADER_HEIGHT + FIELD_MARGIN +
+                     (port.IsInput ? port.Node.InputPorts : port.Node.OutputPorts).IndexOf(port) * PORT_SPACING;
+            float x = port.IsInput ? port.Node.Position.x + 5 : port.Node.Position.x + Node.NODE_WIDTH - 15;
             return new Vector2(x, y);
         }
 
@@ -203,7 +204,7 @@ namespace Escaper.Core.NodeEditor
                 }
 
                 // 次にポートをクリックしたかチェック
-                _startPort = FindPortAtPosition(null, e.mousePosition);
+                _startPort = FindPortAtPosition(e.mousePosition);
                 if (_startPort != null)
                 {
                     _isConnecting = true;
@@ -212,7 +213,7 @@ namespace Escaper.Core.NodeEditor
                 }
 
                 // ポートをクリックしていない場合はノードの選択を処理
-                _selectedNode = _nodes.Find(n => new Rect(n.Position.x, n.Position.y, NODE_WIDTH, NODE_HEIGHT).Contains(e.mousePosition));
+                _selectedNode = _nodes.Find(n => new Rect(n.Position.x, n.Position.y, Node.NODE_WIDTH, NODE_HEIGHT).Contains(e.mousePosition));
                 if (_selectedNode != null)
                 {
                     _dragOffset = e.mousePosition - _selectedNode.Position;
@@ -233,7 +234,7 @@ namespace Escaper.Core.NodeEditor
         {
             if (_isConnecting && _startPort != null)
             {
-                Port targetPort = FindPortAtPosition(null, e.mousePosition);
+                Port targetPort = FindPortAtPosition(e.mousePosition);
                 if (targetPort != null && targetPort != _startPort && CanConnect(_startPort, targetPort))
                 {
                     _connections.Add(new Connection(_startPort, targetPort));
@@ -256,7 +257,7 @@ namespace Escaper.Core.NodeEditor
         {
             if (_isConnecting && _startPort != null)
             {
-                _hoveredPort = FindPortAtPosition(null, mousePosition);
+                _hoveredPort = FindPortAtPosition(mousePosition);
                 if (_hoveredPort != null && !CanConnect(_startPort, _hoveredPort))
                 {
                     _hoveredPort = null;
@@ -264,35 +265,31 @@ namespace Escaper.Core.NodeEditor
             }
         }
 
-        protected virtual Port FindPortAtPosition(Node node, Vector2 position)
+        protected virtual Port FindPortAtPosition(Vector2 position)
         {
-            if (node == null)
+            foreach (var node in _nodes)
             {
-                node = _nodes.Find(n => new Rect(n.Position.x, n.Position.y, NODE_WIDTH, NODE_HEIGHT).Contains(position));
-            }
-
-            if (node != null)
-            {
-                foreach (var port in node.InputPorts.Concat(node.OutputPorts))
+                // 入力ポートの検出
+                for (int i = 0; i < node.InputPorts.Count; i++)
                 {
-                    Rect portRect = new Rect(
-                        port.IsInput ? node.Position.x + 5 : node.Position.x + NODE_WIDTH - 25,
-                        node.Position.y + 30 + (port.IsInput ? node.InputPorts : node.OutputPorts).IndexOf(port) * PORT_SPACING,
-                        20,
-                        PORT_HEIGHT
-                    );
-
-                    // ポートの検出範囲を広げる
-                    Rect extendedRect = new Rect(
-                        portRect.x - 5,
-                        portRect.y - 5,
-                        portRect.width + 10,
-                        portRect.height + 10
-                    );
-
-                    if (extendedRect.Contains(position))
+                    float y = node.Position.y + HEADER_HEIGHT + FIELD_MARGIN + i * PORT_SPACING;
+                    Vector2 portPos = new Vector2(node.Position.x + 5, y);
+                    Rect portRect = new Rect(portPos.x - 5, portPos.y - 5, 20, 20);
+                    if (portRect.Contains(position))
                     {
-                        return port;
+                        return node.InputPorts[i];
+                    }
+                }
+
+                // 出力ポートの検出
+                for (int i = 0; i < node.OutputPorts.Count; i++)
+                {
+                    float y = node.Position.y + HEADER_HEIGHT + FIELD_MARGIN + i * PORT_SPACING;
+                    Vector2 portPos = new Vector2(node.Position.x + Node.NODE_WIDTH - 15, y);
+                    Rect portRect = new Rect(portPos.x - 5, portPos.y - 5, 20, 20);
+                    if (portRect.Contains(position))
+                    {
+                        return node.OutputPorts[i];
                     }
                 }
             }
@@ -306,7 +303,49 @@ namespace Escaper.Core.NodeEditor
             if (start.Node == end.Node) return false;
             if (start.IsInput == end.IsInput) return false;
             if (_connections == null) return true;
-            return !_connections.Any(c => c.SourcePort == start && c.TargetPort == end);
+
+            // 既存の接続をチェック
+            if (_connections.Any(c => c.SourcePort == start && c.TargetPort == end)) return false;
+
+            // ノードの種類に応じた接続制限
+            var sourceNode = start.Node;
+            var targetNode = end.Node;
+
+            // 入力ポートへの接続の場合
+            if (end.IsInput)
+            {
+                // PuzzleNodeの入力には、StartNodeまたはPuzzleNodeからの接続のみ許可
+                if (targetNode is PuzzleNode)
+                {
+                    return sourceNode is StartNode || sourceNode is PuzzleNode;
+                }
+                // StatusNodeの入力には、PuzzleNodeからの接続のみ許可
+                else if (targetNode is StatusNode)
+                {
+                    return sourceNode is PuzzleNode;
+                }
+            }
+            // 出力ポートからの接続の場合
+            else
+            {
+                // StartNodeの出力には、PuzzleNodeへの接続のみ許可
+                if (sourceNode is StartNode)
+                {
+                    return targetNode is PuzzleNode;
+                }
+                // PuzzleNodeの出力には、PuzzleNodeまたはStatusNodeへの接続のみ許可
+                else if (sourceNode is PuzzleNode)
+                {
+                    return targetNode is PuzzleNode || targetNode is StatusNode;
+                }
+                // StatusNodeの出力には、PuzzleNodeへの接続のみ許可
+                else if (sourceNode is StatusNode)
+                {
+                    return targetNode is PuzzleNode;
+                }
+            }
+
+            return false;
         }
 
         protected virtual void HandleContextClick(Event e)
@@ -342,6 +381,31 @@ namespace Escaper.Core.NodeEditor
 
             return null;
         }
+
+        protected virtual void DrawPorts(T node)
+        {
+            // 入力ポートの描画
+            for (int i = 0; i < node.InputPorts.Count; i++)
+            {
+                float y = node.Position.y + HEADER_HEIGHT + FIELD_MARGIN + i * PORT_SPACING;
+                Vector2 portPos = new Vector2(node.Position.x + 5, y);
+                Rect portRect = new Rect(portPos.x - 5, portPos.y - 5, 20, 20);
+                EditorGUI.DrawRect(portRect, new Color(0.2f, 0.2f, 0.2f, 0.8f));
+                GUI.Box(portRect, "←");
+                GUI.Label(new Rect(portPos.x + 15, portPos.y - 5, 100, 20), node.InputPorts[i].Name);
+            }
+
+            // 出力ポートの描画
+            for (int i = 0; i < node.OutputPorts.Count; i++)
+            {
+                float y = node.Position.y + HEADER_HEIGHT + FIELD_MARGIN + i * PORT_SPACING;
+                Vector2 portPos = new Vector2(node.Position.x + Node.NODE_WIDTH - 15, y);
+                Rect portRect = new Rect(portPos.x - 5, portPos.y - 5, 20, 20);
+                EditorGUI.DrawRect(portRect, new Color(0.2f, 0.2f, 0.2f, 0.8f));
+                GUI.Box(portRect, "→");
+                GUI.Label(new Rect(portPos.x - 115, portPos.y - 5, 100, 20), node.OutputPorts[i].Name);
+            }
+        }
     }
 
     public class NodePanel : BaseNodePanel<Node>
@@ -353,6 +417,7 @@ namespace Escaper.Core.NodeEditor
         protected override void DrawNode(Node node)
         {
             node.DrawNode();
+            DrawPorts(node);
         }
     }
 }

@@ -5,71 +5,48 @@ namespace Escaper.Core.NodeEditor
 {
     public class PuzzleNode : Node
     {
-        private static readonly Color NodeColor = new Color(0.2f, 0.4f, 0.8f);
+        private static readonly Color NODE_COLOR = new Color(0.6f, 0.4f, 0.2f, 0.8f);
 
-        public PuzzleNode(string name, Vector2 position) : base(name, position)
+        public PuzzleNode(string name) : base(name)
         {
+            Position = new Vector2(300, 100);
+        }
+
+        protected override void InitializePorts()
+        {
+            InputPorts.Add(new Port("Input", this, true));
+            OutputPorts.Add(new Port("Success", this, false));
+            OutputPorts.Add(new Port("Failure", this, false));
+        }
+
+        public override Color GetNodeColor()
+        {
+            return NODE_COLOR;
         }
 
         public override void DrawNode()
         {
             UpdateNodeRect();
 
-            // 背景色を設定
-            Color originalColor = GUI.color;
-            GUI.color = GetNodeColor();
-            GUI.Box(NodeRect, "");
-            GUI.color = originalColor;
+            // ノードの背景を描画
+            EditorGUI.DrawRect(NodeRect, GetNodeColor());
 
-            // ヘッダー
-            Rect headerRect = new Rect(Position.x, Position.y, 200f, 20f);
-            GUI.Box(headerRect, Name);
+            // ノードのヘッダーを描画
+            Rect headerRect = new Rect(Position.x, Position.y, NODE_WIDTH, HEADER_HEIGHT);
+            EditorGUI.DrawRect(headerRect, new Color(0.3f, 0.3f, 0.3f, 0.8f));
+            GUI.Label(headerRect, Name, new GUIStyle { alignment = TextAnchor.MiddleCenter });
 
-            float currentY = Position.y + 25f;
+            float currentY = Position.y + HEADER_HEIGHT + FIELD_MARGIN;
 
             // GameObjectフィールド
-            Rect objectFieldRect = new Rect(Position.x + 5f, currentY, 190f, 20f);
-            TargetObject = (GameObject)EditorGUI.ObjectField(
-                objectFieldRect,
-                "Target",
-                TargetObject,
-                typeof(GameObject),
-                true
-            );
-            currentY += 25f;
-
-            // ポートの描画
-            DrawPorts(currentY);
+            Rect objectFieldRect = new Rect(Position.x + FIELD_MARGIN, currentY, NODE_WIDTH - FIELD_MARGIN * 2, FIELD_HEIGHT);
+            EditorGUI.DrawRect(objectFieldRect, new Color(0.25f, 0.25f, 0.25f, 0.8f));
+            GameObject = (GameObject)EditorGUI.ObjectField(objectFieldRect, GameObject, typeof(GameObject), true);
         }
 
-        private void DrawPorts(float startY)
+        protected override float GetNodeHeight()
         {
-            // 入力ポートの描画
-            for (int i = 0; i < InputPorts.Count; i++)
-            {
-                float y = startY + i * 25f;
-                GUI.Box(new Rect(Position.x + 5, y, 20, 20), "←");
-                GUI.Label(new Rect(Position.x + 30, y, 100, 20), InputPorts[i].Name);
-            }
-
-            // 出力ポートの描画
-            for (int i = 0; i < OutputPorts.Count; i++)
-            {
-                float y = startY + i * 25f;
-                GUI.Box(new Rect(Position.x + 175, y, 20, 20), "→");
-                GUI.Label(new Rect(Position.x + 70, y, 100, 20), OutputPorts[i].Name);
-            }
-        }
-
-        public override Color GetNodeColor()
-        {
-            return NodeColor;
-        }
-
-        protected override void InitializePorts()
-        {
-            AddInputPort("Input");
-            AddOutputPort("Output");
+            return HEADER_HEIGHT + FIELD_MARGIN * 2 + FIELD_HEIGHT + Mathf.Max(InputPorts.Count, OutputPorts.Count) * PORT_SPACING;
         }
     }
 }

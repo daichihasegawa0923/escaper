@@ -5,49 +5,38 @@ namespace Escaper.Core.NodeEditor
 {
     public class StartNode : Node
     {
-        private static readonly Color NodeColor = new Color(0.2f, 0.8f, 0.2f);
+        private static readonly Color NODE_COLOR = new Color(0.4f, 0.6f, 0.2f, 0.8f);
 
-        public StartNode(string name, Vector2 position) : base(name, position)
+        public StartNode(string name) : base(name)
         {
+            Position = new Vector2(50, 100);
         }
 
         public override void DrawNode()
         {
-            UpdateNodeRect();
+            // ノードの背景を描画
+            Rect nodeRect = new Rect(Position.x, Position.y, NODE_WIDTH, GetNodeHeight());
+            EditorGUI.DrawRect(nodeRect, NODE_COLOR);
 
-            // 背景色を設定
-            Color originalColor = GUI.color;
-            GUI.color = GetNodeColor();
-            GUI.Box(NodeRect, "");
-            GUI.color = originalColor;
-
-            // ヘッダー
-            Rect headerRect = new Rect(Position.x, Position.y, 200f, 20f);
-            GUI.Box(headerRect, Name);
-
-            // ポートの描画
-            DrawPorts();
-        }
-
-        private void DrawPorts()
-        {
-            // 出力ポートの描画
-            for (int i = 0; i < OutputPorts.Count; i++)
-            {
-                float y = Position.y + 30 + i * 25f;
-                GUI.Box(new Rect(Position.x + 175, y, 20, 20), "→");
-                GUI.Label(new Rect(Position.x + 70, y, 100, 20), OutputPorts[i].Name);
-            }
-        }
-
-        public override Color GetNodeColor()
-        {
-            return NodeColor;
+            // ノードのヘッダーを描画
+            Rect headerRect = new Rect(Position.x, Position.y, NODE_WIDTH, HEADER_HEIGHT);
+            EditorGUI.DrawRect(headerRect, new Color(0.3f, 0.3f, 0.3f, 0.8f));
+            GUI.Label(headerRect, Name, new GUIStyle { alignment = TextAnchor.MiddleCenter });
         }
 
         protected override void InitializePorts()
         {
-            AddOutputPort("Next");
+            OutputPorts.Add(new Port("Output", this, false));
+        }
+
+        protected override float GetNodeHeight()
+        {
+            return HEADER_HEIGHT + FIELD_MARGIN * 2;
+        }
+
+        public override Color GetNodeColor()
+        {
+            return NODE_COLOR;
         }
     }
 }

@@ -1,51 +1,124 @@
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 namespace Escaper.Core.NodeEditor
 {
-    public abstract class Node
+    public class Node
     {
+        public const float NODE_WIDTH = 200f;
+        public const float HEADER_HEIGHT = 30f;
+        public const float FIELD_HEIGHT = 25f;
+        public const float FIELD_MARGIN = 5f;
+        public const float PORT_SPACING = 30f;
+
         public string Id { get; private set; }
         public string Name { get; set; }
         public Vector2 Position { get; set; }
         public List<Port> InputPorts { get; private set; }
         public List<Port> OutputPorts { get; private set; }
-        public GameObject TargetObject { get; set; }
+        public GameObject GameObject { get; set; }
         public Rect NodeRect { get; private set; }
 
-        protected Node(string name, Vector2 position)
+        protected List<NodeRow> _rows;
+
+        public Node(string name)
         {
             Id = System.Guid.NewGuid().ToString();
             Name = name;
-            Position = position;
+            Position = Vector2.zero;
             InputPorts = new List<Port>();
             OutputPorts = new List<Port>();
-            UpdateNodeRect();
+            _rows = new List<NodeRow>();
+            InitializeRows();
             InitializePorts();
+            UpdateNodeRect();
+        }
+
+        protected virtual void InitializeRows()
+        {
+            if (GameObject != null)
+            {
+                _rows.Add(new GameObjectRow(GameObject, OnGameObjectChanged));
+            }
+        }
+
+        protected virtual void OnGameObjectChanged(GameObject gameObject)
+        {
+            GameObject = gameObject;
+        }
+
+        protected virtual void InitializePorts()
+        {
+            // サブクラスで実装
         }
 
         public void UpdateNodeRect()
         {
-            NodeRect = new Rect(Position.x, Position.y, 200f, 120f);
+            NodeRect = new Rect(Position.x, Position.y, NODE_WIDTH, GetNodeHeight());
         }
 
-        public void AddInputPort(string name)
+        protected virtual float GetNodeHeight()
         {
-            InputPorts.Add(new Port(name, this, true));
+            float height = HEADER_HEIGHT;
+            foreach (var row in _rows)
+            {
+                height += row.Height + row.Margin;
+            }
+            height += Mathf.Max(InputPorts.Count, OutputPorts.Count) * (NodeRow.DEFAULT_HEIGHT + NodeRow.DEFAULT_MARGIN);
+            return height;
         }
 
-        public void AddOutputPort(string name)
+        public virtual void DrawNode()
         {
-            OutputPorts.Add(new Port(name, this, false));
+            UpdateNodeRect();
+
+            // ノードの背景を描画
+            EditorGUI.DrawRect(NodeRect, GetNodeColor());
+
+            // ノードのヘッダーを描画
+            Rect headerRect = new Rect(Position.x, Position.y, NODE_WIDTH, HEADER_HEIGHT);
+            EditorGUI.DrawRect(headerRect, new Color(0.3f, 0.3f, 0.3f, 0.8f));
+            GUI.Label(headerRect, Name, new GUIStyle { alignment = TextAnchor.MiddleCenter });
+
+            // 行を描画
+            float currentY = Position.y + HEADER_HEIGHT;
+            foreach (var row in _rows)
+            {
+                currentY += row.Margin;
+                Rect rowRect = new Rect(Position.x + 5, currentY, NODE_WIDTH - 10, row.Height);
+                row.Draw(rowRect);
+                currentY += row.Height;
+            }
+
+            // ポートを描画
+            currentY += NodeRow.DEFAULT_MARGIN;
+            for (int i = 0; i < Mathf.Max(InputPorts.Count, OutputPorts.Count); i++)
+            {
+                currentY += NodeRow.DEFAULT_MARGIN;
+                if (i < InputPorts.Count)
+                {
+                    Rect portRect = new Rect(Position.x + 5, currentY, NodeRow.DEFAULT_HEIGHT, NodeRow.DEFAULT_HEIGHT);
+                    new PortRow(InputPorts[i], true).Draw(portRect);
+                }
+                if (i < OutputPorts.Count)
+                {
+                    Rect portRect = new Rect(Position.x + NODE_WIDTH - NodeRow.DEFAULT_HEIGHT - 5, currentY, NodeRow.DEFAULT_HEIGHT, NodeRow.DEFAULT_HEIGHT);
+                    new PortRow(OutputPorts[i], false).Draw(portRect);
+                }
+                currentY += NodeRow.DEFAULT_HEIGHT;
+            }
         }
 
-        // ノードの描画処理を各派生クラスで実装
-        public abstract void DrawNode();
+        public virtual Color GetNodeColor()
+        {
+            return new Color(0.2f, 0.2f, 0.2f, 0.8f);
+        }
 
-        // ノードの種類に応じたポートを初期化
-        protected abstract void InitializePorts();
-
-        // ノードの種類に応じた背景色を取得
-        public abstract Color GetNodeColor();
+        protected void AddRow(NodeRow row)
+        {
+            _rows.Add(row);
+            UpdateNodeRect();
+        }
     }
 }
